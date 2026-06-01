@@ -81,28 +81,56 @@ Details zu jedem Use Case findet ihr in [EXERCISES.md](EXERCISES.md).
 
 Ohne diesen Schritt kann kein Workflow Dateien committen oder Issues kommentieren.
 
-### Schritt 3: Beispiel testen (5 Min)
+### Schritt 3: Labels anlegen (3 Min) – PFLICHT
+
+**Wichtig:** Beim "Use this template" werden **keine Labels mitkopiert** (Labels
+sind Repo-Metadaten, kein Git-Inhalt). Der Beispiel-Workflow triggert aber auf
+dem Label `doku-request` und vergibt am Ende `completed` bzw. `invalid-input`.
+Fehlen diese Labels, **startet der Workflow gar nicht** oder bricht beim
+Label-Setzen ab.
+
+Legt daher diese vier Labels **vor dem ersten Test** an
+(Issues → Labels → New label):
+
+| Label | Zweck |
+|---|---|
+| `doku-request` | Trigger fuer den Beispiel-Workflow |
+| `automation` | Kennzeichnung automatisierter Issues |
+| `completed` | wird nach Erfolg gesetzt |
+| `invalid-input` | wird bei ungueltiger Eingabe gesetzt |
+
+Schneller per GitHub CLI (falls lokal vorhanden):
+```bash
+gh label create doku-request --color 1d76db
+gh label create automation   --color 0e8a16
+gh label create completed    --color 5319e7
+gh label create invalid-input --color d93f0b
+```
+
+### Schritt 4: Beispiel testen (5 Min)
 
 Bevor ihr eigenes baut: erlebt das Beispiel.
 
 1. **Issues** → **New Issue** → "Doku-Vorlage anfordern" waehlen.
 2. Felder ausfuellen (Service-Name z.B. `mein-test-service`).
 3. **Submit new issue**.
-4. **Actions**-Tab oeffnen → Workflow laeuft.
-5. Wenn fertig: in `generated-docs/` neue Datei pruefen, Kommentar im Issue pruefen.
+4. Pruefen, dass am Issue das Label `doku-request` haengt (sonst startet der Workflow nicht).
+5. **Actions**-Tab oeffnen → Workflow laeuft.
+6. Wenn fertig: in `generated-docs/` neue Datei pruefen, Kommentar im Issue pruefen.
 
 Wenn das nicht funktioniert: `docs/TROUBLESHOOTING.md` konsultieren.
 
-### Schritt 4: Eigenen Use Case umsetzen (30 Min)
+### Schritt 5: Eigenen Use Case umsetzen (30 Min)
 
 Folgt [EXERCISES.md](EXERCISES.md) fuer euren gewaehlten Use Case (A/B/C/D).
 
 Kurzanleitung:
 1. Issue Form anlegen: kopiert `example-doc-request.yml`, benennt um, passt Felder an.
 2. Workflow anlegen: kopiert `example-doc-handler.yml`, benennt um, passt Logik an.
-3. Testen wie in Schritt 3.
+3. Fuer euren Use Case benoetigte Labels anlegen (analog Schritt 3).
+4. Testen wie in Schritt 4.
 
-### Schritt 5: Akzeptanzkriterien pruefen (5 Min)
+### Schritt 6: Akzeptanzkriterien pruefen (5 Min)
 
 Euer Mini-IDP funktioniert, wenn:
 - Ein Issue kann ueber das Formular erstellt werden.
@@ -117,6 +145,8 @@ Euer Mini-IDP funktioniert, wenn:
 | Problem | Loesung |
 |---|---|
 | Workflow laeuft nicht, kein Trigger | `on:` im Workflow falsch. Muss `on: issues: types: [opened]` sein. |
+| Workflow startet nicht, obwohl Issue da ist | Label `doku-request` fehlt im Repo und wird daher nicht gesetzt. Labels anlegen (Schritt 3). |
+| Workflow bricht beim Label-Setzen ab | Label `completed`/`invalid-input` existiert nicht. Labels anlegen (Schritt 3). |
 | Workflow laeuft, kann aber nicht schreiben | Settings → Actions → General → Read and write permissions aktivieren. |
 | YAML-Fehler im Issue Form | Indentation! YAML ist whitespace-sensitive. Cheatsheet konsultieren. |
 | Formular taucht nicht im Issue-Chooser auf | Datei muss in `.github/ISSUE_TEMPLATE/` liegen, Endung `.yml`, valide YAML. |

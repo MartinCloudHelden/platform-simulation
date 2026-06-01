@@ -8,6 +8,8 @@ Haeufige Probleme und deren Loesungen bei der Arbeit mit diesem Schulungsrepo.
 
 | Symptom | Wahrscheinliche Ursache | Loesung |
 |---------|------------------------|---------|
+| Workflow startet gar nicht, Issue hat kein `doku-request`-Label | Label existiert nicht im Repo. Beim "Use this template" werden Labels NICHT mitkopiert, daher kann das Issue-Formular sie nicht setzen. | Label `doku-request` (und `automation`, `completed`, `invalid-input`) unter Issues → Labels anlegen. Siehe "Vorab: Labels anlegen" in EXERCISES.md. |
+| Workflow bricht beim Label-Setzen ab (`gh issue edit --add-label`) | Ziel-Label (`completed`/`invalid-input`) existiert nicht | Labels vorab anlegen. `gh issue edit --add-label` erstellt fehlende Labels NICHT automatisch. |
 | Workflow startet nicht nach Issue-Erstellung | 1. Label stimmt nicht ueberein 2. Event-Typ falsch 3. Workflow-Datei hat YAML-Fehler | Label im Issue-Template und im Workflow-`if` vergleichen. Unter Actions → Workflow pruefen, ob der Workflow ueberhaupt sichtbar ist. YAML mit einem Linter pruefen. |
 | Workflow startet, bricht aber bei "Commit" ab | Fehlende Schreibrechte fuer den GITHUB_TOKEN | Settings → Actions → General → "Read and write permissions" aktivieren. Im Workflow `permissions: contents: write` setzen. |
 | Workflow startet, bricht bei "gh issue comment" ab | `permissions: issues: write` fehlt oder `GH_TOKEN` nicht gesetzt | `permissions: issues: write` im Workflow ergaenzen. Step braucht `env: GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`. |

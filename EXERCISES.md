@@ -21,6 +21,38 @@ Ohne diesen Schritt kann der Workflow keine Dateien committen und keine Issues k
 
 ---
 
+## Vorab: Labels anlegen
+
+**Ebenfalls Voraussetzung fuer ALLE Use Cases.** Beim "Use this template" werden
+**keine Labels mitkopiert** – ein neues Repo hat nur die GitHub-Standard-Labels.
+Die Workflows triggern aber auf Labels (z.B. `doku-request`) und vergeben
+Status-Labels (z.B. `completed`). Fehlen sie, **startet der Workflow nicht** oder
+bricht beim Setzen des Labels ab.
+
+Legt fuer das Beispiel (Use Case D) diese vier Labels an
+(**Issues → Labels → New label**):
+
+| Label | Zweck |
+|---|---|
+| `doku-request` | Trigger fuer den Beispiel-Workflow |
+| `automation` | Kennzeichnung automatisierter Issues |
+| `completed` | wird nach Erfolg gesetzt |
+| `invalid-input` | wird bei ungueltiger Eingabe gesetzt |
+
+Schneller per GitHub CLI:
+```bash
+gh label create doku-request --color 1d76db
+gh label create automation   --color 0e8a16
+gh label create completed    --color 5319e7
+gh label create invalid-input --color d93f0b
+```
+
+**Fuer eure eigenen Use Cases (A/B/C):** legt die dort verwendeten Labels
+(z.B. `service-register`, `access-request-pending`, `tf-pending-review`) genauso
+vorab an, bevor ihr testet.
+
+---
+
 ## Beispiel: Use Case D ist schon umgesetzt
 
 Bevor ihr loslegt, lauft das mitgelieferte Beispiel einmal durch. Damit versteht
@@ -44,11 +76,122 @@ Vorlage, committet sie ins Repo und kommentiert das Issue.
 1. **Issues** → **New Issue** → "Doku-Vorlage anfordern" waehlen.
 2. Felder ausfuellen (Service-Name z.B. `mein-test-service`).
 3. **Submit new issue**.
-4. **Actions**-Tab oeffnen → Workflow laeuft.
-5. Wenn fertig: in `generated-docs/` neue Datei pruefen, Kommentar im Issue pruefen.
+4. Pruefen, dass am Issue das Label `doku-request` haengt – nur dann startet der Workflow.
+5. **Actions**-Tab oeffnen → Workflow laeuft.
+6. Wenn fertig: in `generated-docs/` neue Datei pruefen, Kommentar im Issue pruefen.
 
-Wenn das nicht funktioniert: Workflow-Permissions wirklich aktiviert?
-`docs/TROUBLESHOOTING.md` konsultieren.
+Wenn das nicht funktioniert: Workflow-Permissions wirklich aktiviert? Labels
+angelegt (siehe "Vorab: Labels anlegen")? `docs/TROUBLESHOOTING.md` konsultieren.
+
+---
+
+## Grundrezept: So baust du JEDEN Use Case
+
+Alle vier Use Cases folgen demselben Muster. Wenn du dieses Grundrezept
+verstanden hast, musst du in den Use Cases nur noch die Details austauschen.
+Du brauchst **immer genau zwei Dateien**: ein Formular und einen Workflow.
+
+> **Wichtiger Tipp:** Erfinde nichts neu. Kopiere die beiden Beispiel-Dateien,
+> benenne sie um und aendere nur die markierten Stellen. Fang mit einer
+> Minimalversion an (Formular + Kommentar) und baue erst dann den Rest ein.
+
+### Baustein 1 – Das Formular (`.github/ISSUE_TEMPLATE/<name>.yml`)
+
+Kopiervorlage. Tausche `label`, `id` und die Felder aus:
+
+```yaml
+name: "Mein Formular"
+description: "Was dieses Formular macht"
+title: "[Mein-Prefix] "
+labels: ["mein-label"]      # <-- merke dir dieses Label, der Workflow filtert darauf
+body:
+  - type: input
+    id: feld_eins           # <-- frei waehlbar, brauchst du spaeter zum Parsen
+    attributes:
+      label: "Feld Eins"    # <-- daraus wird im Issue-Body "### Feld Eins"
+    validations:
+      required: true
+  - type: dropdown
+    id: umgebung
+    attributes:
+      label: "Umgebung"
+      options: [dev, staging, prod]
+    validations:
+      required: true
+```
+
+Merke: Aus jedem `label:` wird im Issue-Body eine Ueberschrift `### Feld Eins`.
+Genau diese Ueberschrift benutzt der Workflow zum Auslesen.
+
+### Baustein 2 – Trigger + Berechtigungen (Kopf jedes Workflows)
+
+```yaml
+name: "Mein Workflow"
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: write
+  issues: write
+jobs:
+  job:
+    if: contains(github.event.issue.labels.*.name, 'mein-label')   # <-- Label aus dem Formular
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+```
+
+### Baustein 3 – Ein Feld aus dem Issue auslesen
+
+Diese Hilfsfunktion holt den Wert unter einer `### Ueberschrift`. Genau so steht
+sie im Beispiel-Workflow (Schritt "Issue-Body parsen"):
+
+```yaml
+      - name: Felder lesen
+        id: parse
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}   # <-- Issue-Text sicher als Variable
+        run: |
+          extract_field() {
+            echo "$ISSUE_BODY" | sed -n "/### $1/,/### /{/### $1/d;/### /d;p;}" | sed '/^$/d' | head -1
+          }
+          echo "feld_eins=$(extract_field 'Feld Eins')" >> "$GITHUB_OUTPUT"
+          echo "umgebung=$(extract_field 'Umgebung')" >> "$GITHUB_OUTPUT"
+```
+
+Danach nutzt du die Werte in spaeteren Schritten als `${{ steps.parse.outputs.feld_eins }}`.
+
+### Baustein 4 – Werte SICHER weiterverwenden
+
+**Goldene Regel:** Werte aus dem Issue niemals direkt mit `${{ ... }}` in eine
+`run:`-Zeile schreiben. Immer ueber `env:` reichen und als `"$VAR"` benutzen.
+Sonst koennte ein boeser Issue-Text Befehle ausfuehren.
+
+```yaml
+      - name: Etwas tun
+        env:
+          FELD_EINS: ${{ steps.parse.outputs.feld_eins }}   # <-- ueber env, nicht inline
+        run: |
+          echo "Wert ist: $FELD_EINS"        # richtig
+          # echo "Wert ist: ${{ steps.parse.outputs.feld_eins }}"   # FALSCH/unsicher
+```
+
+### Baustein 5 – Issue kommentieren, labeln, schliessen
+
+```yaml
+      - name: Issue abschliessen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Erledigt."
+          gh issue edit "$ISSUE_NUMBER" --add-label "completed"   # Label muss existieren!
+          gh issue close "$ISSUE_NUMBER" --reason "completed"
+```
+
+Mehr Bausteine (PR erstellen, Datei committen) findest du in
+`docs/CHEATSHEET-actions.md`. Ab hier brauchst du in den Use Cases nur noch
+festlegen, **was** zwischen Baustein 3 und 5 passiert.
 
 ---
 
@@ -89,24 +232,50 @@ created_by: <issue-author>
 
 ### Schritt fuer Schritt
 
-1. **Issue Form anlegen:**
-   - In GitHub auf **Add file** → **Create new file**.
-   - Pfad: `.github/ISSUE_TEMPLATE/register-service.yml`.
-   - Inhalt: kopiert aus `example-doc-request.yml`, passt Name, Beschreibung,
-     Felder und Labels an.
-   - Wichtig: Label hier `service-register` (oder aehnlich) – der Workflow filtert darauf.
-2. **Workflow anlegen:**
-   - Pfad: `.github/workflows/register-service.yml`.
-   - Inhalt: kopiert aus `example-doc-handler.yml`.
-   - Anpassen:
-     - `name:` aendern.
-     - Filter auf neues Label umstellen (`if: contains(... 'service-register')`).
-     - Schritt "Datei erzeugen" auf `catalog/`-Ordner umlenken.
-     - Template entfaellt – ihr schreibt das YAML direkt im Workflow per `heredoc`
-       (`cat > catalog/$NAME.yml << EOF ... EOF`).
-3. Commit beider Dateien auf `main`.
-4. Test: neues Issue mit dem neuen Formular erstellen.
-5. Pruefen: Datei in `catalog/` da? Kommentar im Issue? Label gesetzt?
+1. **Formular** anlegen (`.github/ISSUE_TEMPLATE/register-service.yml`) –
+   nimm Baustein 1 aus dem Grundrezept, Felder: `service_name`, `owner`,
+   `repo_url`, `environment`. Setze `labels: ["service-register"]`.
+2. **Label anlegen:** `service-register` und `service-registered` unter
+   Issues → Labels erstellen (sonst triggert/labelt der Workflow nicht).
+3. **Workflow** anlegen (`.github/workflows/register-service.yml`) – nimm
+   Bausteine 2–5, filtere auf `service-register`, lies die vier Felder (Baustein 3).
+4. Zwischen Parsen und Abschluss die YAML-Datei schreiben (siehe Hilfe unten).
+5. **Test:** neues Issue erstellen, dann pruefen: Datei in `catalog/` da?
+   Kommentar im Issue? Label gesetzt?
+
+### Konkrete Hilfe (zum Kopieren)
+
+So schreibst du die Katalog-Datei – Werte sicher ueber `env`, kein `sed` noetig:
+
+```yaml
+      - name: Katalogeintrag schreiben
+        env:
+          SERVICE_NAME: ${{ steps.parse.outputs.service_name }}
+          OWNER: ${{ steps.parse.outputs.owner }}
+          REPO_URL: ${{ steps.parse.outputs.repo_url }}
+          ENVIRONMENT: ${{ steps.parse.outputs.environment }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          # Sicherheits-Check fuer den Dateinamen (kein Path-Traversal)
+          [[ "$SERVICE_NAME" =~ ^[a-z][a-z0-9-]+$ ]] || { echo "ungueltiger Name"; exit 1; }
+          cat > "catalog/${SERVICE_NAME}.yml" <<EOF
+          service: ${SERVICE_NAME}
+          owner: ${OWNER}
+          repo: ${REPO_URL}
+          environment: ${ENVIRONMENT}
+          created_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          created_by: ${AUTHOR}
+          EOF
+```
+
+Den Commit-/Kommentar-/Schliessen-Teil kopierst du direkt aus dem
+Beispiel-Workflow (Schritte 5–7).
+
+### Fang klein an
+
+Bau zuerst nur: Formular + Workflow, der das Issue mit "Hallo" kommentiert
+(Baustein 5). Wenn das laeuft, ergaenze das Datei-Schreiben. So findest du Fehler
+frueh statt am Ende alles auf einmal.
 
 ### Stretch-Goals
 
@@ -166,11 +335,41 @@ um die Anfrage als genehmigt zu kennzeichnen.
 
 ### Schritt fuer Schritt
 
-1. Issue Form anlegen unter `.github/ISSUE_TEMPLATE/request-access.yml`.
-2. Workflow anlegen unter `.github/workflows/request-access.yml`.
-3. Workflow-Aufbau wie beim Beispiel, aber: kein File-Commit, nur Kommentar +
-   Label. Nutzt `gh issue comment` und `gh issue edit --add-label`.
-4. Test: Issue erstellen, Kommentar pruefen, Label pruefen.
+1. **Formular** anlegen (`.github/ISSUE_TEMPLATE/request-access.yml`) –
+   Baustein 1, Felder: `github_username`, `target_repo`, `permission`, `reason`,
+   `expires`. Setze `labels: ["access-request"]`.
+2. **Label anlegen:** `access-request` und `access-request-pending`.
+3. **Workflow** anlegen (`.github/workflows/request-access.yml`) – Bausteine 2–3,
+   dann den Kommentar schreiben (Hilfe unten). Issue NICHT schliessen.
+4. **Test:** Issue erstellen, Kommentar pruefen, Label `access-request-pending` pruefen.
+
+Dieser Use Case ist bewusst einfach: **kein Datei-Commit**, nur Kommentar + Label.
+
+### Konkrete Hilfe (zum Kopieren)
+
+```yaml
+      - name: Freigabe-Kommentar schreiben
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          USERNAME: ${{ steps.parse.outputs.github_username }}
+          TARGET_REPO: ${{ steps.parse.outputs.target_repo }}
+          PERMISSION: ${{ steps.parse.outputs.permission }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "## Zugriffsanfrage zur Freigabe
+
+          - Benutzer: @${USERNAME}
+          - Repo: ${TARGET_REPO}
+          - Berechtigung: ${PERMISSION}
+
+          **An den Plattform-Admin:** Bitte mit Label \`approved\` markieren."
+          gh issue edit "$ISSUE_NUMBER" --add-label "access-request-pending"
+```
+
+### Fang klein an
+
+Erst nur das Formular + ein fester Kommentar ("Anfrage erhalten"). Wenn das
+laeuft, baue die echten Felder in den Kommentar ein.
 
 ### Stretch-Goals
 
@@ -186,8 +385,8 @@ um die Anfrage als genehmigt zu kennzeichnen.
 
 - Wenn das `expires`-Feld eine Befristung verlangt, aber der Workflow nichts
   damit tut: in echt muesste ein Scheduler den Zugriff entziehen. Das ist in
-  unserer Mock-Variante nicht umgesetzt – als Diskussionspunkt fuer Phase 4
-  parkieren.
+  unserer Mock-Variante nicht umgesetzt – als Diskussionspunkt fuer die
+  Abschluss-Demo parkieren.
 
 ---
 
@@ -232,26 +431,63 @@ Das ist auch in echten IDPs ein ueblicher Zwischenschritt – Code-Review vor De
 
 ### Schritt fuer Schritt
 
-1. **Issue Form anlegen** unter `.github/ISSUE_TEMPLATE/request-s3-bucket.yml`.
-   - Wichtig: Issue Forms koennen NICHT per Regex validieren (nur `required`).
-     Den Bucket-Namen daher im Workflow pruefen (Bash `=~` mit
-     `^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$`) und bei Verstoss abbrechen.
-2. **Workflow anlegen** unter `.github/workflows/request-s3-bucket.yml`.
-   - Aufbau wie Beispiel, aber:
-     - Schritt "Template rendern": `sed`-Aufruf, der die vier Platzhalter
-       ersetzt. Beispiel:
-```bash
-sed -e "s|__BUCKET_NAME__|$BUCKET|g" \
-    -e "s|__REGION__|$REGION|g" \
-    -e "s|__ENVIRONMENT__|$ENV|g" \
-    -e "s|__TAG_PROJECT__|$PROJECT|g" \
-    templates/terraform-s3-snippet.tf > generated-tf/$BUCKET.tf
+1. **Formular** anlegen (`.github/ISSUE_TEMPLATE/request-s3-bucket.yml`) –
+   Baustein 1, Felder: `bucket_name`, `region`, `environment`, `project_tag`,
+   `versioning`. Setze `labels: ["s3-request"]`.
+   - Issue Forms koennen NICHT per Regex validieren (nur `required`). Den
+     Bucket-Namen pruefst du daher im Workflow (siehe Hilfe unten).
+2. **Labels anlegen:** `s3-request` und `tf-pending-review`. Ordner
+   `generated-tf/` anlegen (z.B. eine leere `.gitkeep` darin).
+3. **Workflow** anlegen (`.github/workflows/request-s3-bucket.yml`) – Bausteine
+   2–3, dann Template rendern + PR erstellen (Hilfe unten).
+4. **Test** mit `cloudhelden-demo-bucket`. PR pruefen: alle Werte korrekt eingesetzt?
+
+### Konkrete Hilfe (zum Kopieren)
+
+Validieren und rendern – sicher gegen Sonderzeichen mit Python (wie im Beispiel):
+
+```yaml
+      - name: Template rendern
+        env:
+          BUCKET: ${{ steps.parse.outputs.bucket_name }}
+          REGION: ${{ steps.parse.outputs.region }}
+          ENVIRONMENT: ${{ steps.parse.outputs.environment }}
+          PROJECT: ${{ steps.parse.outputs.project_tag }}
+        run: |
+          # Bucket-Name pruefen (S3-Regeln). Bricht ab, wenn ungueltig.
+          [[ "$BUCKET" =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || { echo "ungueltiger Bucket-Name"; exit 1; }
+          mkdir -p generated-tf
+          python3 - "generated-tf/${BUCKET}.tf" <<'PY'
+          import os, sys
+          with open("templates/terraform-s3-snippet.tf", encoding="utf-8") as f:
+              tf = f.read()
+          tf = tf.replace("__BUCKET_NAME__", os.environ["BUCKET"])
+          tf = tf.replace("__REGION__", os.environ["REGION"])
+          tf = tf.replace("__ENVIRONMENT__", os.environ["ENVIRONMENT"])
+          tf = tf.replace("__TAG_PROJECT__", os.environ["PROJECT"])
+          with open(sys.argv[1], "w", encoding="utf-8") as f:
+              f.write(tf)
+          PY
 ```
-     - Schritt "PR erstellen": `peter-evans/create-pull-request@v6` oder `gh pr create`.
-3. **Ordner `generated-tf/` anlegen** (per `.gitkeep` oder beim ersten Commit
-   automatisch).
-4. Test mit einem realistischen Bucket-Namen (z.B. `cloudhelden-demo-bucket`).
-5. PR pruefen: ist die `.tf`-Datei korrekt gerendert? Stehen alle Werte drin?
+
+Fuer den Pull Request ist `peter-evans/create-pull-request@v6` am einfachsten –
+die Action erstellt Branch, Commit und PR in einem Schritt:
+
+```yaml
+      - name: Pull Request erstellen
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: "feature/s3-${{ steps.parse.outputs.bucket_name }}"
+          title: "S3-Bucket: ${{ steps.parse.outputs.bucket_name }}"
+          commit-message: "feat: S3-Bucket ${{ steps.parse.outputs.bucket_name }} gerendert"
+          body: "Automatisch aus Issue erzeugt. Bitte vor Apply pruefen."
+```
+
+### Fang klein an
+
+Erst nur: Formular + Workflow, der das Template rendert und die Datei **direkt
+auf main committet** (wie im Beispiel). Den PR-Teil baust du erst ein, wenn das
+Rendern funktioniert.
 
 ### Stolpersteine
 
@@ -298,20 +534,23 @@ Workflow.
 1. `example-doc-handler.yml` als Basis nehmen (NICHT die Datei direkt
    editieren – kopieren als `example-doc-handler-v2.yml` und das Original
    deaktivieren oder loeschen).
-2. Vor dem Datei-Erzeugen-Schritt einen "Validate"-Schritt einbauen:
+2. Vor dem Datei-Erzeugen-Schritt einen "Validate"-Schritt einbauen. Den
+   Issue-Wert NICHT direkt mit `${{ ... }}` in die `run`-Zeile schreiben (das
+   waere Script-Injection), sondern ueber `env` reichen und als `"$NAME"` lesen:
 ```yaml
 - name: Validate inputs
   id: validate
+  env:
+    NAME: ${{ steps.parse.outputs.service_name }}
   run: |
-    NAME="${{ steps.parse.outputs.service_name }}"
     if [[ ! "$NAME" =~ ^[a-z0-9-]{3,40}$ ]]; then
-      echo "INVALID=true" >> $GITHUB_OUTPUT
-      echo "REASON=Service-Name entspricht nicht dem Schema" >> $GITHUB_OUTPUT
-    elif [[ -f "generated-docs/$NAME.md" ]]; then
-      echo "INVALID=true" >> $GITHUB_OUTPUT
-      echo "REASON=Service '$NAME' existiert bereits" >> $GITHUB_OUTPUT
+      echo "INVALID=true" >> "$GITHUB_OUTPUT"
+      echo "REASON=Service-Name entspricht nicht dem Schema" >> "$GITHUB_OUTPUT"
+    elif [[ -f "generated-docs/${NAME}.md" ]]; then
+      echo "INVALID=true" >> "$GITHUB_OUTPUT"
+      echo "REASON=Service '${NAME}' existiert bereits" >> "$GITHUB_OUTPUT"
     else
-      echo "INVALID=false" >> $GITHUB_OUTPUT
+      echo "INVALID=false" >> "$GITHUB_OUTPUT"
     fi
 ```
 3. Folgende Schritte mit `if: steps.validate.outputs.INVALID == 'false'` konditionieren.
@@ -346,28 +585,6 @@ Eure Implementierung gilt als erfolgreich, wenn alle Punkte erfuellt sind:
 - [ ] Das Issue erhaelt ein Label, das den Status erkennen laesst.
 - [ ] (Use Cases A/D) Das Issue wird automatisch geschlossen.
 - [ ] (Use Cases B/C) Das Issue bleibt offen und wartet auf einen Folgeschritt.
-
----
-
-## Reflexion (fuer Phase 4)
-
-Bereitet zur Demo kurze Antworten auf folgende Fragen vor – das ist der
-gedankliche Mehrwert, nicht der Code:
-
-1. **Was war an eurer Umsetzung Self-Service?**
-   (Hinweis: der Nutzer hat die Aktion ohne Ticket an Ops bekommen.)
-
-2. **Was war Governance?**
-   (Hinweis: PR-Review bei Use Case C, Approval-Label bei B, Validierung bei D,
-   alles ist im Issue + Git-Historie dokumentiert.)
-
-3. **Was unterscheidet eure Loesung von einem "echten" IDP?**
-   (Erwartete Punkte: kein zentrales Portal, kein Service Catalog mit UI,
-   kein Monitoring, keine Berechtigungs-Granularitaet, kein Multi-Repo-Scope.)
-
-4. **Was muesste man ergaenzen, damit das in einer 50-Personen-Firma traegt?**
-   (Erwartete Punkte: zentrales Plattform-Repo, Templates als Code, echte
-   Backends fuer die Aktionen, Audit-Logging, Self-Service-Portal-UI obenauf.)
 
 ---
 

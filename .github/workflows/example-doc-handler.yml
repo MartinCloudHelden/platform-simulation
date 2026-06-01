@@ -196,7 +196,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          # Label "completed" hinzufuegen (wird automatisch erstellt, falls nicht vorhanden)
+          # Label "completed" hinzufuegen. WICHTIG: Das Label muss im Repo bereits
+          # existieren – gh erstellt fehlende Labels NICHT. Siehe README Schritt 3.
           gh issue edit "$ISSUE_NUMBER" --add-label "completed"
           # Issue schliessen mit dem Grund "completed"
           gh issue close "$ISSUE_NUMBER" --reason "completed"
