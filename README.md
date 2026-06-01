@@ -1,10 +1,8 @@
 # Mini-IDP Skelett – Schulungsrepo
 
-Dieses Repository ist ein **Template-Repo** fuer eine Anfaenger-Schulung zum Thema "Internal Developer Platform (IDP) mit GitHub-Bordmitteln". Es demonstriert, wie Self-Service-Workflows mit GitHub Issue Forms und GitHub Actions umgesetzt werden koennen – ganz ohne externe Tools oder Infrastruktur.
+Dieses Repository ist ein **Template-Repo** fuer eine Schulung zum Thema "Internal Developer Platform (IDP) mit GitHub-Bordmitteln". Es demonstriert, wie Self-Service-Workflows mit GitHub Issue Forms und GitHub Actions umgesetzt werden koennen – ganz ohne externe Tools oder Infrastruktur.
 
 Teilnehmer nutzen dieses Skelett als Ausgangspunkt und implementieren darauf basierend eigene Self-Service-Use-Cases.
-
-**Dauer:** ~90 Min | **Format:** Einzel- oder Paerchenarbeit, jeder in eigenem Repo | **Vorkenntnisse:** GitHub-Account, Browser. Kein lokales Git noetig.
 
 ---
 
@@ -15,7 +13,6 @@ Nach der Uebung koennt ihr:
 1. Drei Komponenten eines IDP konkret benennen (Portal, Self-Service, Automatisierung).
 2. Den Unterschied zwischen *Plattform* und *Portal* erklaeren.
 3. Einen einfachen Self-Service-Workflow mit GitHub-Bordmitteln umsetzen.
-4. Den Zusammenhang zu IHK-Themen (Automatisierung, Governance, Dokumentation) herstellen.
 
 ---
 
@@ -29,7 +26,7 @@ Eine **Internal Developer Platform** (IDP) ist eine Sammlung von Werkzeugen und 
 
 ## Phase 1 – Recherche (20 Min)
 
-Lest **eine** der beiden Quellen (oder kombiniert):
+Lest **eine** der beiden Quellen:
 
 - Google Cloud: <https://cloud.google.com/discover/what-is-an-internal-developer-platform?hl=de>
 - Red Hat: <https://www.redhat.com/de/topics/platform-engineering/what-is-an-internal-developer-platform>
@@ -39,11 +36,11 @@ Lest **eine** der beiden Quellen (oder kombiniert):
 - **Was sind "Golden Paths"?**
 - **Welche Self-Service-Aktionen tauchen als Beispiele auf?**
 
-**Ergaenzend (optional, 5 Min):** Eine Live-Demo oeffnen und 3 Self-Service-Aktionen identifizieren:
+**Ergaenzend (optional, max. 5 Min):** Eine Live-Demo oeffnen und 3 Self-Service-Aktionen identifizieren:
 - <https://demo.port.io/self-serve>
 - <https://demo.backstage.io>
 
-**Output:** Auf Papier oder im Editor stichpunktartig: 3 Use Cases, die ihr in echt gesehen habt. Mit Notiz: Welche Eingaben braucht der User? Was passiert dahinter?
+Notiert/Merkt euch 3 Use Cases, die ihr in echt gesehen habt. Welche Eingaben braucht der User? Was passiert dahinter?
 
 ---
 

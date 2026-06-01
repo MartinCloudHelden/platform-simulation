@@ -595,5 +595,4 @@ Eure Implementierung gilt als erfolgreich, wenn alle Punkte erfuellt sind:
 - `docs/TROUBLESHOOTING.md` – die haeufigsten Fehler mit Loesung
 - Offizielle GitHub-Doku zu Issue Forms:
   <https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues/syntax-for-issue-forms>
-- Beispiel-Workflow im Skelett: `.github/workflows/example-doc-handler.yml` –
-  die Kommentare dort sind euer wichtigster Referenzpunkt.
+- Beispiel-Workflow im Skelett: `.github/workflows/example-doc-handler.yml` – die Kommentare dort sind euer wichtigster Referenzpunkt.
